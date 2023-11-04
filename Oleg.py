@@ -15,10 +15,10 @@ b = []
 cond = []
 
 for i in range(0, cnt):
-    # S = [(0.2 + 1/i) for i in range(1, m+1)]  # np.diag(2 + np.random.randn(m))
-    # U = np.linalg.qr(np.random.randn(n, m), mode='raw')[0].T
-    # Vh = np.linalg.qr(np.random.randn(m, m), mode='raw')[0]
-    # Mat.append(U @ np.diag(S) @ Vh)
+    #S = [(0.2 + 1/i) for i in range(1, m+1)]  # np.diag(2 + np.random.randn(m))
+    #U = np.linalg.qr(np.random.randn(n, m), mode='raw')[0].T
+    #Vh = np.linalg.qr(np.random.randn(m, m), mode='raw')[0]
+    #Mat.append(U @ np.diag(S) @ Vh)
 
     Mat.append(np.random.randn(n, m))
     x.append(np.random.randn(m))
@@ -52,7 +52,7 @@ svd_time = []
 for i in range(0, cnt):
     start = time.time()
     U, S, Vh = np.linalg.svd(Mat[i], full_matrices=False)
-    svd_pinv.append(Vh.T @ np.diag(1 / S) @ U.T)
+    svd_pinv.append(Vh.T @ np.diag(1/S) @ U.T)
     end = time.time()
     svd_time.append(end - start)
 
@@ -95,7 +95,7 @@ ffffff
 fig, ax = plt.subplot_mosaic(mosaic)
 
 for i, name in enumerate(names):
-    ax[hists[i]].hist(plu_norm, bins=BINS, histtype='bar', color=clrs[i], edgecolor='black')
+    ax[hists[i]].hist(norms[i], bins=BINS, histtype='bar', color=clrs[i], edgecolor='black')
     ax[hists[i]].set_xlabel('')
     ax[hists[i]].set_ylabel('')
     ax[hists[i]].set_title(names[i] + ' norm hist', fontsize=NORMAL_FS)
