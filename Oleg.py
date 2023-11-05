@@ -1,36 +1,62 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import scipy
 import time
 
 # QR vs PLU vs SVD
-n = 150
-m = 100
-cnt = 300
+
+# settings
+n = 200
+m = 150
+S_mult = 10**(8)  # > 1
+X_mult = 10**(-4)  # > 0
+IS_NORMAL = False
+IS_COMPLEX = True
+# const
+cnt = 400
+ALPHA_POS = 0.5
+ALPHA_ZERO = 0.1
+
+# containers
 Id = np.eye(m)
 Mat = []
 x = []
 b = []
 cond = []
-IS_COMPLEX = True
 s_min = []
 s_max = []
 s_mean = []
+randf = None
+if IS_NORMAL:
+    randf = np.random.randn
+else:
+    randf = np.random.rand
+prob = [1 - ALPHA_POS - ALPHA_ZERO, ALPHA_POS, ALPHA_ZERO]
 
+# mat generator
 for i in range(0, cnt):
+    mask1 = np.random.choice([-1, 1, 0], size=n * m, p=prob)
+    mask1 = mask1.reshape((n, m))
+    mask2 = np.random.choice([-1, 1, 0], size=n * m, p=prob)
+    mask2 = mask2.reshape((n, m))
+    maskx = np.random.choice([-1, 1, 0], size=m, p=prob)
+    S_ = randf(m)
+    med = np.median(S_)
+    S_[S_ > med] *= S_mult
+    S_[S_ < med] /= S_mult
     if IS_COMPLEX:
-        Mat.append(np.random.randn(n, m) + 1.j * np.random.randn(n, m))
-        x.append(np.random.randn(m) + 1.j * np.random.randn(m))
+        U, S, Vh = np.linalg.svd(mask1 * randf(n, m) + 1.j * mask2 * randf(n, m), full_matrices=False)
+        Mat.append(U @ np.diag(S_) @ Vh)
+        x.append(maskx * X_mult * (randf(m) + 1.j * randf(m)))
     else:
-        Mat.append(np.random.randn(n, m))
-        x.append(np.random.randn(m))
-    b.append(Mat[i] @ x[i])
+        U, S, Vh = np.linalg.svd(mask1 * randf(n, m), full_matrices=False)
+        Mat.append(U @ np.diag(S_) @ Vh)
+        x.append(maskx * X_mult * randf(m))
     cond.append(np.linalg.cond(Mat[i]))
-    S = np.linalg.svd(Mat[i], full_matrices=False, compute_uv=False)
-    s_min.append(np.min(S))
-    s_max.append(np.max(S))
-    s_mean.append(np.mean(S))
+    b.append(Mat[i] @ x[i])
+    s_min.append(np.min(S_))
+    s_max.append(np.max(S_))
+    s_mean.append(np.mean(S_))
 
 # PLU
 plu_pinv = []
@@ -90,7 +116,7 @@ for i in range(0, cnt):
 norms = [plu_norm, qr_norm, svd_norm]
 mean_norm = [np.mean(plu_norm), np.mean(qr_norm), np.mean(svd_norm)]
 max_norm = [np.max(plu_norm), np.max(qr_norm), np.max(svd_norm)]
-mean_time = [np.mean(plu_time)/1000, np.mean(qr_time)/1000, np.mean(svd_time)/1000]
+mean_time = [np.mean(plu_time)*1000, np.mean(qr_time)*1000, np.mean(svd_time)*1000]
 s_min_mean = np.round(np.mean(s_min), 1)
 s_max_mean = np.round(np.mean(s_max), 1)
 s_mean_mean = np.round(np.mean(s_mean), 1)
@@ -104,14 +130,17 @@ plot = 'g'
 plot_xlabel = 'condition number'
 plot_ylabel = 'norm'
 
-NORMAL_FS = 10
-SMALL_FS = 8
+NORMAL_FS = 11
+SMALL_FS = 9
 HIST_BINS = 28
 PLOT_BINS = 16
 number = 'real'
+destr = 'linear'
 if IS_COMPLEX: number = 'complex'
+if IS_NORMAL: destr = 'normal'
 suptitle = 'Matrices (' + str(n) + ' x ' + str(m) + '), ' + str(cnt) + ' count, with ' + number + ' numbers'
 suptitle += ', S in [' + str(s_min_mean) + ', ' + str(s_max_mean) + '], mean(S) = ' + str(s_mean_mean)
+suptitle += ', destribution: ' + destr
 
 fig, ax = plt.subplot_mosaic("""
     aabbcc
@@ -136,7 +165,7 @@ for i, name in enumerate(names):
     ax[bars[1]].bar(name, mean_norm[i], color=clrs[i])
     ax[bars[2]].bar(name, max_norm[i], color=clrs[i])
     ax[bars[i]].set_xlabel('')
-    ax[bars[i]].set_ylabel(bars_ylabel[i], fontsize=SMALL_FS)
+    ax[bars[i]].set_ylabel(bars_ylabel[i], fontsize=NORMAL_FS)
     ax[bars[i]].set_title('')
     ax[bars[i]].grid(axis='y')
     ax[bars[i]].tick_params(axis='y', labelsize=SMALL_FS)
@@ -144,9 +173,9 @@ for i, name in enumerate(names):
 
 for i, name in enumerate(names):
     ax[plot].plot(cond, norms[i], '.', markersize=6, color=clrs[i])
-ax[plot].set_xlabel(plot_xlabel, fontsize=SMALL_FS)
-ax[plot].set_ylabel(plot_ylabel, fontsize=SMALL_FS)
-ax[plot].legend(names)
+ax[plot].set_xlabel(plot_xlabel, fontsize=NORMAL_FS)
+ax[plot].set_ylabel(plot_ylabel, fontsize=NORMAL_FS)
+ax[plot].legend(names, fontsize=NORMAL_FS, framealpha=1.0)
 ax[plot].tick_params(axis='both', labelsize=SMALL_FS)
 ax[plot].locator_params(axis='x', nbins=PLOT_BINS)
 ax[plot].grid(axis='both')
@@ -154,4 +183,6 @@ ax[plot].grid(axis='both')
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
 plt.subplots_adjust(wspace=0.6, hspace=0.9)
 fig.suptitle(suptitle, size=NORMAL_FS, fontweight="bold", y=0.94)
+fname = str(n) + '_' + str(m) + '_' + str(cnt) + '_' + number[0] + '_' + str(int(np.round(s_mean_mean, 0))) + '_' + destr[0]
+print(fname)
 plt.show()
